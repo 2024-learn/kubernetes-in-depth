@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp
+spec:
+  type: NodePort
+  selector: # Connects the service to the pod. Should match the labels in the pod section
+    app: myapp
+  ports:
+  - port: 80 # Mandatory
+    targetPort: 80 # if not provided, it is assumed to be the same as port
+    NodePort: 30008 # K8s will automatically allocate a free port in the valid range 30000-32767, if not provided

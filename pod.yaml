@@ -1,0 +1,12 @@
+apiVersion: v1 #version of the Kubernetes API we are using to create the object (string)
+kind: Pod #kind of object being created (string)
+metadata: #data/information about the object being created. (dictionary)
+  name: myapp-pod#(string)
+  labels: #(dictionary within the metadata dictionary)
+    app: myapp
+    type: front-end
+spec: # specification section for the object being created (dictionary)
+  containers: #(list/array)
+  - name: #the dash shows it is the first item in the list of the array
+    image: nginx
+
