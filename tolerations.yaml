@@ -1,0 +1,15 @@
+apiVersion: v1
+Kind: Pod
+metadata:
+  name: myapp-pod
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx
+    tolerations: # (same as the specified value pairs of the taint on the node. All the values need to be in double-quotes)
+    - key: "app"
+      operator: "Equal"
+      value: "blue"
+      effect: "NoSchedule"
+
+# Taint ==> (kubectl taint nodes node1 app=blue:NoSchedule)

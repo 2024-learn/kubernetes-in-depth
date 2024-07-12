@@ -299,7 +299,251 @@
       - https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
   
 - __Taints and Tolerations__
-  - 
+  - Taints and tolerations (not security related/cluster intrusion) are used to define what pods can be scheduled on what nodes or set restrictions on what pods can be scheduled on a node
+  - By default, no pods have tolerance for a taint. As such, we have to specify which pods are going to be tolerant to a certain taint by applying toleration to the pod, allowing the pod to be scheduled on the tainted node .
+  - Taints are placed on nodes and tolerations are placed on pods
+    - `kubectl taint nodes node-name key=value:taint-effect`
+    - E.g. `kubectl taint nodes node1 app=blue:NoSchedule`
+    - `kubectl taint nodes controlplane node-role.kubernetes.io/master:NoSchedule`: will taint the controlplane node
+    - To view this taint: `kubectl describe node kubemaster(controlplane) | grep Taint`
+  - To untaint (Remove a taint from a node):
+    - You can use kubectl taint to remove taints. You can remove taints by key, key-value, or key-effect.
+    - For example, the following command removes all the taints with the dedicated key from the mynode node:
+      - `kubectl taint nodes mynode dedicated-` 
+      - `kubectl taint nodes controlplane node-role.kubernetes.io/master:NoSchedule-`: untaints controlplane node
+  - *Taint-effect* refers to what happens to pods that do not tolerate this taint
+    - There are 3 taint effects: 
+        - NoSchedule: Pods will not be scheduled on the node
+        - PreferNoSchedule: the system will try not to schedule on the node but not guaranteed
+        - NoExecute: New pods will be scheduled and old pods will be evicted if they do not tolerate the taint.
+          - The evicted pod is killed
+  - Tolerations do not guarantee that the pod with the toleration will always be placed on the tainted node. 
+  - The pod with the toleration can be scheduled on any of the other nodes without restrictions.
+  - Taint only means that the node is only allowed to accept the pods with certain requirements (tolerations)
+  - Pods are generally not scheduled on the master because k8s automatically sets a taint for pods not to be scheduled on it when the cluster is formed.
 
+- __Node Selectors__:
+  - Node Selectors: these are used to set limitations on pods so that they can only be scheduled on particular nodes.
+  - It is indicated as a key value pair in the “spec” section of a pod and for a pod to be eligible to run on a node, the node must have each of the key value pairs as labels.
+  - You label the nodes before you place the pods on them. 
+  - To label nodes:
+    - `kubectl label nodes <node-name> <label-key>=<label-value>`
+    - `kubectl label nodes node-1 size=Large`
+  - Then the pod can now be created with the same restriction as the node:
+  - To verify if the label was applied successfully on a node, execute the following command:
+	  - `kubectl get nodes nodeName –show-labels` OR `kubectl describe node nodeName`
+  - nodeSelectors are limited where you have complex restrictions or any advanced expressions like `OR` or `NOT` like if you need to instruct k8s to place the pod on either a large OR medium node or NOT on a small node. 
+    - Due to this, we then turn to *node affinity*
+
+- __Node Affinity__
+  - The primary purpose of node affinity is to ensure that certain pods are placed/hosted on certain nodes. 
+  - So node affinity gives us the advanced capability to limit pod placement on specific nodes.
+  - The operator can also be `NotIn` to specify which nodes not to place the pod
+  - The `Exists` operator will check if the label size exists on the nodes and you don't need the label values for that... as it does not compare the values
+  - Unless you are setting the size for the node affinity to anything else than small, you do not need to set a different size, this is where the `Operator:Exists` comes into play because it will not need to look for the size unless it is other than small.
+  - What happens when nodeAffinity can not match the node with the given matchExpressions like the label “size”? Eg. when the pod is scheduled and someone changes the label at another time?
+    - The type of node affinity defines the behavior of the scheduler with respects to the node affinity and the stages of the lifecycle of the pod
+  - There are two types of node affinity in the life cycle of a pod:
+    - *Currently available:*
+      - requiredDuringSchedulingIgnoredDuringExecution
+      - preferredDuringSchedulingIgnoredDuringExecution
+    - *Planned:*
+      - requiredDuringSchedulingRequiredDuringExecution
+      - preferredDuringSchedulingRequiredDuringExecution
+  
+  - There are two states in the life cycle of a pod when considering node affinity:
+    - DuringScheduling- the state where the pod does not exist and is being created for the first time
+      - Required vs preferred:
+        - *Required*: The scheduler doesn't run the work load unless the node affinity type label matches. That is, the pod will not be scheduled if there is no node with matching labels. Use case: Where the placement of the pod os crucial.
+        - *Preferred*: this lets the scheduler know that the workload needs to be run and it is a priority. But, if the label cannot be matched, the scheduler should ignore the node affinity rules and schedule the pod on any other node.
+    - *DuringExecution*- the state where a pod has been running and a change is made in the environment that affects the node affinity e.g. a change in the label of a node.
+      - *Ignored*- In case an admin was to change the label eg.size, the pods will continue to run and any changes to node affinity will not affect them once scheduled
+      - *RequiredDuringExecution*- (planned for the future)- this would evict any pods that do not meet the node affinity rules
+
+- __Node Affinity vs. Taints and Tolerations__:
+  - Taints and tolerations do not guarantee that a pod must be scheduled on a particular node. A pod with a specified toleration could still end up on a node that has no taint set. On the other hand, using node affinity enables us to apply labels to the nodes and tie these nodes to pods by setting selectors. As a result, these pods will be scheduled on the right nodes but that does not guarantee that other pods (with no selector set) cannot be scheduled on these nodes.
+  - Therefore, a combination of taints and tolerations, and node affinity rules can be used together to completely dedicate nodes for specific pods. That is, first use taints and tolerations to prevent other pods from being placed on the nodes, then use node affinity to ensure pods are placed on specific nodes.
+  - Using a combination of both is preferred to ensure that the right pod is placed on the right node
+
+- __Resource Requirements and Limits__:
+  - Resource Requirements and Limits
+  - Resource requirement- the minimum amount of CPU or memory requested by the container
+  - Default: k8s assumes that a container requires 0.5CPU and 256 Mebibytes (Mi) of memory.
+  - If needed these values can be changed under resources in the manifest file.
+  - The values can be incremented as needed
+    - 0.1 CPU = 100m  where `m` stands for milli
+    - Can only go as low as 1m
+    - 1 CPU = 1 AWS vCPU, 1GCP Core, 1 Azure Core, 1 Hyperthread
+    - Memory:
+      - 1G (Gigabyte) = 1,000,000,000 bytes
+      - 1M (Megabyte) = 1,000,000 bytes
+      - 1K (Kilobyte) = 1,000 bytes
+
+      - 1Gi(Gibibyte) = 1,073,741,824 bytes
+      - 1Mi(Mebibyte) = 1,048,576 bytes
+      - 1Ki(Kibibyte) = 1,024 bytes
+  - Kubernetes does not set a limit on the resources that a container can consume on a node, hence it can go up and consume as much resources as it requires and that suffocates the native processes on the node.
+  - Limits and requests are set for each container within a pod
+  
+  - If a pod tries to use more resources beyond its specified limit, in the case of CPU, k8s will throttle the CPU so it doesn't go beyond the specified limit so a container cannot go above the specified CPU limit.
+  - However, memory cannot be throttled. When limits are not set, when available, any pod can consume as much memory as available. The only option available to free/retrieve the memory would be to kill the pod consuming all the memory. 
+  - So, if the pod constantly tries to use more than the specified memory limit, it will be terminated with an `OOM` error.
+ 
+  - By default, does not have a CPU or memory request or limit set for pods; meaning any pod can sonsume as much resources as required on any node and suffocate other pods or processes that are running on the node of resources
+  - ** Ideal: At least set requests if you do not set limits; that is the only way a pod will have resources guaranteed when there are no limits set for other pods.
+
+  - How do we ensure that every pod created has some default set?
+    - This is possible with *limit ranges*. Limit ranges can help you define default values to be set for containers in pods that are created without a request or limit specified in the pod-definition files. This is applicable at the namespace level
+    - Note: These limits are enforced when a pod is created. So if you create or change a limit range, it does not affect existing pods, only those created after the limit range is created or updated
+  
+  - Is there a way to erstrict the total amount of resources that can be consumed by applications deployed in a Kubernetes cluster? e.g. all pods together should not consume more that a certain amount of CPU or memory...
+    - We can create quotas at a namespace level.
+    - A resource quota is a namespace level object that can be created to set hard limits for requests and limits
+    
+  - Resources:
+    - <https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/memory-default-namespace/>
+    - <https://kubernetes.io/docs/tasks/administer-cluster/manage-resources/cpu-default-namespace/>
+    - <https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource>
+      ```
+      apiVersion: v1
+      kind: LimitRange
+      metadata:
+      name: mem-limit-range
+      spec:
+      limits:
+      - default:
+          memory: 512Mi
+        defaultRequest:
+          memory: 256Mi
+        type: Container
+      ```
+
+      ```
+      apiVersion: v1
+      kind: LimitRange
+      metadata:
+      name: cpu-limit-range
+      spec:
+      limits:
+      - default:
+          cpu: 1 
+        defaultRequest:
+          cpu: 0.5
+        type: Container
+      ```
+  - The status `OOMKilled` indicates that it is failing because the pod ran out of memory. Identify the memory limit set on the POD.
+  
+  - We cannot edit the “spec” of a running pod using the `kubectl edit pod podName` command. This will output an error but it will temporarily store the changes in the temp directory (`/tmp/kubernetes-edit-xxxxxxx.yaml`). This file can be used to recreate the pod using the `kubectl replace -f  /tmp/kubernetes-edit-xxxxxxx.yaml --force` which will automatically delete the existing pod and recreate it.
+  
+  - A quick note on editing PODs and Deployments
+    - Edit a POD:
+      - Remember, you CANNOT edit specifications of an existing POD other than the below.
+      `spec.containers[*].image`
+      `spec.initContainers[*].image`
+      `spec.activeDeadlineSeconds`
+      `spec.tolerations`
+      - For example, you cannot edit the environment variables, service accounts, resource limits of a running pod. But if you really want to, you have 2 options:
+      1. Run the `kubectl edit pod <pod name>` command.  This will open the pod specification in an editor (vi editor). Then edit the required properties. When you try to save it, you will be denied. This is because you are attempting to edit a field on the pod that is not editable. A copy of the file with your changes is saved in a temporary location in the /tmp folder.
+      ![edit-pod](./edit-pod.png) 
+      ![edit-pod](./edit-pod2.png) 
+         - You can then delete the existing pod by running the command: `kubectl delete pod webapp`
+         - Then create a new pod with your changes using the temporary file: `kubectl create -f /tmp/kubectl-edit-ccvrq.yaml`
+      2. The second option is to extract the pod definition in YAML format to a file using the command: `kubectl get pod webapp -o yaml > my-new-pod.yaml`
+         - Then make the changes to the exported file using an editor (vi editor). 
+         - Save the changes
+           `vi my-new-pod.yaml`
+         - Then delete the existing pod: `kubectl delete pod webapp`
+         - Then create a new pod with the edited file:
+         `kubectl create -f my-new-pod.yaml`
+    
+    - Edit Deployments
+      - With Deployments you can easily edit any field/property of the POD template. Since the pod template is a child of the deployment specification,  with every change the deployment will automatically delete and create a new pod with the new changes. So if you are asked to edit a property of a POD part of a deployment you may do that simply by running the command: `kubectl edit deployment my-deployment`
+
+- __DaemonSets__
+  - It allows you to create multiple instances of your pods but it runs one copy of your pod on each node in your cluster. 
+  - Whenever a new node is added to the cluster, a replica of the pod is automatically added to that node and when a node is removed from the cluster, the pod is automatically deleted
+  - A daemonSet ensures that one copy of the pod is always present in all the nodes in the cluster
+  - Use cases: 
+    - Monitoring agent/ monitoring solution / log viewer 
+    - Kube-proxy
+    - Networking solution like weave-net
+  - It looks like a replicaSet except for the kind is a DaemonSet
+  - `kubectl get daemonsets`
+  - `kubectl describe daemonsets [name of daemonset]` → `kubectl describe daemonsets monitoring-daemon`
+  - How does it work?
+    - Before v1.12: Set the nodeName property to bypass the scheduler and get the pod placed on a node directly
+    - After v1.12: Uses the default scheduler and node affinity rules to schedule pods on nodes
+
+- __Static Pods__
+  - Static pods are pods created by kubelet on its own without the intervention of the API server or the rest of the k8s cluster components. 
+  - That is, the kubelet is configured to read pod definition files from a directory on the server designated to store information about pods (`/etc/kubernetes/manifests`). 
+  - The kubelet will periodically check this directory, read these files, create the pods on the hosts and ensure that the pods stay alive. The kubelet also attempts to restart the application if it crashes and it will recreate the pod if any changes are made to the definition files
+  - Pods are created using manifest files placed in `/etc/kubernetes/manifests` by kubelet- only pods can be created this way, not replicaSets/DaemonSets/Deployments/Services. If a file is removed from this directly, the pod is also deleted automatically and cannot be recreated
+  - `kubectl run --restart=Never --image=busybox static-busybox --dry-run=client -o yaml --command -- sleep 1000 > /etc/kubernetes/manifests/static-busybox.yaml`
+  - The kubelet works at a pod level and can only understand pods
+    - `--pod-manifest-path=/etc/kubernetes/manifests`
+  - Can also configured by setting a path with the config option: `--config=kubeconfig.yaml` and in the yaml file set the staticPodPath
+  - Clusters set up by the kubeadm tool use this approach
+  - Once the static pods are created, they can be viewed by executing the `docker ps` → this because the rest of the cluster does not exist i.e. there is no apiServer for the kubelet to interact with.
+  - The kubelet can create both the static pods and the ones from the kube-apiserver (provides an http endpoint to provide an input to the kubelet) at the same time.
+  - Is the apiserver aware of the static pods created by the kubelet? 
+    - Yes, when the kubelet creates a static pod, if it is a part of the cluster then it also creates a mirror object in the kube-apiserver. What is observed on the apiserver (kubectl get pods) is just a read-only mirror of the pod(cannot be edited or deleted). The name of a static pod is automatically appended by the node name e.g. “static-web-node01”
+  - Use case:
+    - Because static pods are not dependent on the k8s control plane, static pods can be used to deploy the components of the control plane itself as pods on a node. That is, install kubelet on all the master nodes, create pod definition files that use Docker images of the various controlplane components such as the apiserver, controller, etcd etc, place the definition files in the designated manifest folders and the kubelet will take care of deploying the controlplane components as pods on the cluster. If any of these services were to crash, it will automatically be restarted by the kubelet since it's a static pod.
+  - To get the path of the static pods manifest files, run the command: `cat /var/lib/kubelet/config.yaml`
+  - Diff between static pods and Daemonsets:
+    - Static pods are: 
+      - Created by the kubelet without help from the kube-apiserver
+      - Deploy control plane components as static pods
+    - DaemonSets are:
+      - Created by the kube-apiserver (DaemonSet controller) through the kube-api-server
+      - Deploy monitoring agents, logging agents on nodes
+    - Both static pods and daemonsets are ignored by the kube-scheduler
+
+- __Multiple Schedulers__
+  - Kubernetes allows us to write a custom scheduler program, package and deploy it as the default scheduler or as an additional scheduler in the kubernetes cluster. 
+    ```scheduler-config.yaml
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    profiles:
+    - schedulerName: default-scheduler
+    ``` 
+  - Also, a kubernetes cluster can have multiple schedulers at the same time. 
+    ```my-scheduler-1-config.yaml
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    profiles:
+    - schedulerName: my-scheduler-1
+    ``` 
+    ```my-scheduler-2-config.yaml
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    profiles:
+    - schedulerName: my-scheduler-2
+    ```  
+  - As a result, when creating a Pod or Deployment, you can instruct kubernetes to have the Pod scheduled by a specific scheduler.
+  - To deploy an additional scheduler, you can use the same kube-scheduler binary or use one that you have built for yourself. The kubeadm tool will normally deploy the default scheduler as a Pod (pod definition file located at `/etc/kubernetes/manifests`). 
+    - A custom scheduler can be created by making a copy of the default scheduler’s pod definition file and changing the name of the scheduler (e.g. my-custom-scheduler). Add a new option to the scheduler command to set a custom name for the scheduler.
+
+  - *leader-elect* - this is an option that is used when you have multiple copies of the scheduler running on different master nodes e.g in a high availability setup where there are multiple master nodes with the kube-scheduler process running on all of them. 
+    ```my-scheduler-1-config.yaml
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    profiles:
+    - schedulerName: my-scheduler-1
+    leaderElection:
+      leaderElect: true
+      resourceNamespace: kube-system
+      resourceName: lock-object-my-scheduler
+    ``` 
+    - If multiple copies of the scheduler are running on different nodes, only one can be active at a time. So the leader-elect option helps in choosing a leader who will lead scheduling activities. 
+    - To get multiple schedulers working, the leader-elect option must be set to false (`- --leader-elect=false`) if there are no multiple master nodes. 
+    - If there are multiple master nodes, an additional parameter can be passed to set a lock object name (`- --lock-object-name=my-custom-scheduler`) which will differentiate the new custom scheduler from the default during the leader election process.
+    - <https://kubernetes.io/docs/tasks/extend-kubernetes/configure-multiple-schedulers>
+  - To configure a new Pod or deployment to use the custom scheduler, add a new field in the pod/deployment definition file called `schedulerName` and specify the name of the scheduler (`schedulerName: my-custom-scheduler`).
+  - To know which scheduler picked up the scheduling of a Pod, view events by executing the `kubectl get events` command.
+  - To view the logs of the scheduler, view the logs of the Pod:`kubectl logs <schedulername> <namespace>` e.g. `kubectl logs my-custom-scheduler –n kube-system`
+
+## Logging and monitoring
 
 
