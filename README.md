@@ -541,8 +541,107 @@
     - If there are multiple master nodes, an additional parameter can be passed to set a lock object name (`- --lock-object-name=my-custom-scheduler`) which will differentiate the new custom scheduler from the default during the leader election process.
     - <https://kubernetes.io/docs/tasks/extend-kubernetes/configure-multiple-schedulers>
   - To configure a new Pod or deployment to use the custom scheduler, add a new field in the pod/deployment definition file called `schedulerName` and specify the name of the scheduler (`schedulerName: my-custom-scheduler`).
+    ```
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name nginx
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+      schedulerName: my-custom-scheduler
+    ```
   - To know which scheduler picked up the scheduling of a Pod, view events by executing the `kubectl get events` command.
   - To view the logs of the scheduler, view the logs of the Pod:`kubectl logs <schedulername> <namespace>` e.g. `kubectl logs my-custom-scheduler –n kube-system`
+
+- __Configuring Scheduler Profiles__
+  - When pods are first created they end up in a scheduling queue. 
+    - At this point, pods are sorted based on the priority defined on the pods
+    - To set a priority, you must first create a priority class with a priority name and priority value
+  - Then the pods enter a filtering phase:
+    - This is where the nodes that cannot run the pod are filtered out
+    - e.g. the amount of resources needed for the pod
+  - Scoring phase:
+    - This is where nodes are scored with different weights
+    - It assigns a higher score to the nodes based on how many resources are left in the node after the pod is placed
+  - Binding phase:
+    - This is where the pod is finally bound to a node with the highest score
+  
+  - All these operations are achieved with certain plugins
+  - ** A single plugin can be associated with different phases
+    - In the scheduling queue, the *PrioritySort* plugin sorts the pods in order based on the priority configured on the pods. This is how pods with a priorityClass get higher priority over the other pods when scheduling
+    - In the filtering phase, the *NodeResourcesFit* plugin identifies the nodes that have sufficient resources required by the pods and filters out the nodes that do not.
+      - *NodeName* plugin: checks if a pod has a node name mentioned in the pods spec, and filters out the nodes that do not match the given name
+      - *NodeUnschedulable* plugin: filters out nodes that have the unschedulable flag set to true (`Unschedulable: true`); when you place on the cordon command on a node. this plugin makes sure that the nodes with this flag do not have pods set on them.
+        ```
+        Taints: node.kubernetes.io/unschedulable:NoSchedule
+        Unschedulable: true
+        ```
+    - In the scoring phase, the *NodeResourcesFit* plugin associates a score to each node based on the resources that will be available on it after the pod is placed on it.
+      - *ImageLocality* plugin: Associates a high score to the nodes that already have the container image used by the pods among the different nodes
+    - NOTE: At this phase, the plugins do not really reject the pod placement on a particular node. For example, in the case if the ImageLocality plugin, it ensures that pods are places on a node that already has the image, but if there are no nodes available, it will anyway place the pod on a node that does not have the image, so only scoring is happening at this stage
+    - In the binding phase, the *DefaultBinder* plugin provides the binding mechanism
+  
+  - K8s allows to customize where what plugins go where, how they are names and for us to make custom plugins.
+  - This is achieved with *extension points*. At each stage/phase there is an extension point to which a plugin can be plugged into.
+  <table>
+  <tr>
+    <td>Phase</td>
+    <td>Plugins</td>
+    <td>Extensions</td>
+  </tr>
+  <tr>
+    <td>Scheduling Queue</td>
+    <td>- PrioritySort<br>-NodeResourcesFit<br>NodePorts</td>
+    <td>- queueSort</td>
+  </tr>
+  <tr>
+    <td>Filtering</td> 
+    <td>- NodeResourcesFit<br>- NodeName<br>- NodeUnschedulable<br>- TaintToleration<br>- NodePorts<br>- NodeAffinity</td>
+    <td>- PreFilter<br>- filter<br>- postFilter</td>
+  </tr>
+  <tr>
+    <td>Scoring</td>
+    <td>- NodeResourcesFit<br>- ImageLocality<br>- TaintToleration<br>- NodeAffinity</td>
+    <td>- preScore<br>- score<br>- reserve</td>
+  </tr>
+  <tr>
+    <td>Binding</td>
+    <td>- DefaultBinder</td>
+    <td>- permit<br>- preBind<br>- bind<br>- postBind</td>
+    </tr>
+</table>
+
+  - You can get custom code to run anywhere in these extension point by just creating a plugin and plugging it into the respective extension point you would like to.
+  - How to change the default plugin behavior:
+    - If we create our own schedulers, they will have their own separate scheduler binaries that are run with separate scheduler config files. 
+    - Limitations: 
+      - Given that these are separate processes, there is more work to maintain them.
+      - The schedulers they may also run into race conditions while making scheduling decisions. eg. a scheduler may schedule a workload on a node without knowing that another node is doing the same on that same node at the same time
+    - With v1.18, a feature to support multiple profiles in a single scheduler was introduced. 
+      - This enables us to configure multiple profiles within a single scheduler in the configuration file by adding more entries to the list of profiles, and for each profile, specify a separate scheduler name. 
+      - This creates a separate profile for each scheduler, which acts as a separate scheduler itself, except now, there are multiple schedulers in the same binary, as opposed to creating separate binaries for each scheduler
+
+      ```scheduler-config.yaml
+      apiVersion: kubescheduler.config.k8s.io/v1
+      kind: KubeSchedulerConfiguration
+      profiles:
+      - schedulerName: my-scheduler-1
+      - schedulerName: my-scheduler-2
+      - schedulerName: my-scheduler-3
+      - schedulerName: my-scheduler-4
+      ``` 
+    - Configuring the scheduler profiles to work differently:
+      - Under each profile, we can customize the plugins
+      - See: customized-scheduler-profiles.yaml
+    - References:
+      - <https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework>
+      - <https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/1451-multi-scheduling-profiles>
+      - <https://github.com/kubernetes/community/blob/master/contributors/devel/sig-scheduling/scheduling_code_hierarchy_overview.md>
+      - <https://kubernetes.io/blog/2017/03/advanced-scheduling-in-kubernetes/>
+      - <https://jvns.ca/blog/2017/07/27/how-does-the-kubernetes-scheduler-work>
+      - <https://stackoverflow.com/questions/28857993/how-does-kubernetes-scheduler-work>
 
 ## Logging and monitoring
 
