@@ -93,6 +93,7 @@
   - It looks for new services and each time a new service is created, it creates the appropriate rules on each node to forward traffic from those services to the back-end pod eg. ip-tables rule… in this case, it creates an IP table rule on each node in the cluster to forward traffic heading to the IP of the service to the IP of the actual pod
 
 - __Pods__
+  - [pod definition file](./pod.yaml)
   - Smallest building block in k8s. It is the smallest object we can create in Kubernetes
   - It is a single instance of an application
   - There is a 1:1 relationship between pods and containers except where you have helper containers.
@@ -103,12 +104,15 @@
   - You can only have name and labels and other Kubernetes acceptable information under metadata, but you can enter as many key:value descriptors under labels
   - Name and labels are children of metadata and should have the same indentation as they are siblings, but more indented than the parent
 
- 
 - __ReplicaSets__
   - Controllers are the processes that monitor kubernetes objects and respond accordingly.
   - Replication controller helps us to run multiple instances of a single pod in the k8s cluster, providing high availability
   - You can still use a replication controller with one pod because then the replication controller can help by automatically bringing up a new pod when the old one fails, thus ensuring that the specified number of pods is running at all times.
   - Replication controllers also help us create multiple pods to share the load across them, on different nodes as well as scale our application when the demand increases
+  
+  - [Replication Controller](./replication-controller.yaml)
+  - [ReplicaSet](./replicaset.yaml)
+  
   - Replication Controller vs. ReplicaSet
     - Both have the same purpose but they are not the same
     - RC is the older technology being replaced by RS
@@ -122,6 +126,7 @@
     - RS can be used to monitor pods that are already existing. In case they were not yet created, the Replicaset will create them for you.
       - The role of the replicaset is to monitor the pods and if any of them were to fail, to deploy new ones. The Replicaset is a process that monitors the pods.
       - The labels are used as a filter for the replicaset. Under the selector section, the match labels filter has the same labels used while creating the pods, so that the RS knows which pods to monitor
+      
   - Scaling a ReplicaSet
     - Update the number of replicas in the definition file and run `kubectl replace -f definition.yaml` OR  simply run `kubectl edit rs replicaSetName`, edit and save.
     - NB: when a replicaset definition file is updated, the replicaset does not automatically create new pods with the new updates. The existing pods must be deleted before the replicaset can recreate new pods with the updates. To delete all the pods, run `kubectl delete pods --all`
@@ -131,6 +136,7 @@
       - <https://kubernetes.io/docs/reference/kubectl/conventions/>
 
 - __Deployments__
+  - [Deployment definition file](./deployment.yaml)
   - Deployments are a kubernetes object that come higher in the hierarchy that replica sets.
   - It provides us with the capability to upgrade the underlying instances seamlessly ie scale/update/replace pods with rolling update, rollbacks, pause and resume options
   - The yaml file is the same as the for the RS except for the kind
@@ -149,6 +155,7 @@
   - Service is a k8s object. It listens to a port on the node and forwards the requests to a port on the pod running the web application, and maps requests to the node
   - Types of service:
     - __NodePort:__ 
+      - [nodeport.yaml](./node-port.yaml)
       - Outside of the cluster.  It listens to a port on the node and forwards requests to the pods. It uses the node IP and a static port to expose the container.
       - NOTE: The port on the pod where the container/application is running is known as the TargetPort while the port on the Service is simply known as the Port. 
       - The Service also has its own IP address known as the ClusterIP and the port on the node itself used to access applications in the cluster externally is known as the NodePort (range 30000-32767).
@@ -162,16 +169,20 @@
         - K8s also creates a service that spans all the nodes in the cluster and maps the target port to the same node port on all the nodes in the cluster, making it possible to access your application using the IP of any node in the cluster, using the same port number.
         - When pods are removed/added, the service is automatically updated, making it highly flexible and adaptive.
     - __ClusterIP:__
+    - [clusterIP.yaml](./clusterip.yaml)
       - Inside the cluster. The service creates a virtual service within the cluster to enable communication between the services within the cluster. Eg. front-end and back-end
       - It acts as a single interface to group and connect the pods within the cluster
       - The service can be accessed by other pods using the ClusterIP or using the service name
-    - __LoadBalancer:__ 
+    - __LoadBalancer:__
+    - [loadbalancer.yaml](./loadbalancer.yaml)
       - Outside of the cluster. 
       - Cloud provides a front-end to our service. Kubernetes has support for integrating with native load balancers from various cloud providers
       - Only on supported clouds like Azure, GCP, AWS
       - If set to LoadBalancer on an unsupported platform, like VirtualBox, then it would have the same effect as setting it to nodePort; it will not do any external load balancer configuration
 
 - __Namespaces__
+- [create new namespace](./namespace.yaml)
+- [use namespace](./pod-namespace.yaml)
   - In Kubernetes, this is a logical isolation for resources, or virtual clusters within your k8s cluster so that resources in one isolation do not modify the resources in another
   - Kubernetes creates three namespaces by default:
     - Kube-system: for k8s system for resources that should not be deleted by mistake or interfered with. Scheduling pods on this space could mess up the whole cluster
@@ -281,6 +292,7 @@
 
   - _Annotations:_ These are used to record other details for informative purposes e.g. tool details like name, build version, build information, contact details like phone numbers, emails, etc that might be used for some kind of integration purpose.
   
+  [annotations.yaml](./annotations.yaml)
   - Attaching metadata to objects
     - You can use either labels or annotations to attach metadata to Kubernetes objects. 
     - Labels can be used to select objects and to find collections of objects that satisfy certain conditions. 
@@ -321,8 +333,10 @@
   - The pod with the toleration can be scheduled on any of the other nodes without restrictions.
   - Taint only means that the node is only allowed to accept the pods with certain requirements (tolerations)
   - Pods are generally not scheduled on the master because k8s automatically sets a taint for pods not to be scheduled on it when the cluster is formed.
+  - [tolerations.yaml](./tolerations.yaml)
 
 - __Node Selectors__:
+  - [node-selector.yaml](./node-selector.yaml)
   - Node Selectors: these are used to set limitations on pods so that they can only be scheduled on particular nodes.
   - It is indicated as a key value pair in the “spec” section of a pod and for a pod to be eligible to run on a node, the node must have each of the key value pairs as labels.
   - You label the nodes before you place the pods on them. 
@@ -359,6 +373,7 @@
     - *DuringExecution*- the state where a pod has been running and a change is made in the environment that affects the node affinity e.g. a change in the label of a node.
       - *Ignored*- In case an admin was to change the label eg.size, the pods will continue to run and any changes to node affinity will not affect them once scheduled
       - *RequiredDuringExecution*- (planned for the future)- this would evict any pods that do not meet the node affinity rules
+  - [node-affinity.yaml](./node-affinity.yaml)
 
 - __Node Affinity vs. Taints and Tolerations__:
   - Taints and tolerations do not guarantee that a pod must be scheduled on a particular node. A pod with a specified toleration could still end up on a node that has no taint set. On the other hand, using node affinity enables us to apply labels to the nodes and tie these nodes to pods by setting selectors. As a result, these pods will be scheduled on the right nodes but that does not guarantee that other pods (with no selector set) cannot be scheduled on these nodes.
@@ -391,6 +406,9 @@
  
   - By default, does not have a CPU or memory request or limit set for pods; meaning any pod can sonsume as much resources as required on any node and suffocate other pods or processes that are running on the node of resources
   - ** Ideal: At least set requests if you do not set limits; that is the only way a pod will have resources guaranteed when there are no limits set for other pods.
+  - [Resource Limits.yaml](./resource-limits.yaml)
+  - [Resource Requests.yaml](./resource-requests.yaml)
+  - [Resource Quota.yaml](./resource-quota.yaml)
 
   - How do we ensure that every pod created has some default set?
     - This is possible with *limit ranges*. Limit ranges can help you define default values to be set for containers in pods that are created without a request or limit specified in the pod-definition files. This is applicable at the namespace level
@@ -473,6 +491,7 @@
   - How does it work?
     - Before v1.12: Set the nodeName property to bypass the scheduler and get the pod placed on a node directly
     - After v1.12: Uses the default scheduler and node affinity rules to schedule pods on nodes
+  - [DaemonSet](./daemonset.yaml)
 
 - __Static Pods__
   - Static pods are pods created by kubelet on its own without the intervention of the API server or the rest of the k8s cluster components. 
@@ -634,7 +653,7 @@
       ``` 
     - Configuring the scheduler profiles to work differently:
       - Under each profile, we can customize the plugins
-      - See: customized-scheduler-profiles.yaml
+      - [Customized Scheduler Profiles](./customized-scheduler-profiles.yaml)
     - References:
       - <https://kubernetes.io/docs/concepts/scheduling-eviction/scheduling-framework>
       - <https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/1451-multi-scheduling-profiles>
@@ -644,5 +663,30 @@
       - <https://stackoverflow.com/questions/28857993/how-does-kubernetes-scheduler-work>
 
 ## Logging and monitoring
+- Monitoring in a kubernetes cluster can revolve around knowing the *node level metrics* such as the number of nodes in a cluster; how many of them are healthy as well as *performance metrics* such as CPU, Memory, Network and Disk utilization.
+- Also we can monitor *Pod level* metrics such as the number of pods and *performance metrics of each Pod* such as CPU and Memory consumption on them.
+- Kubernetes does not come with a full featured built-in monitoring solution, it relies on open-source solutions such as Metrics-Server, Prometheus, ElasticStack and proprietary solutions like Datadog and Dynatrace.
+- Monitor cluster components
+  - Metrics Server: you can have one metric server per k8s cluster
+    - The metrics server retrieves metrics from each of the k8s nodes and pods, aggregates them and store them in-memory
+    - Metrics server is only an in-memory monitoring solution and does not store the metrics on the disk and as a result, you cannot see historical performance data.
+  - How k8s generates metrics:
+    - K8s runs an agent on each node known as the kubelet, responsible for receiving instructions from the kubernetes API master server and running pods on the nodes
+    - The kubelet also contains a sub component known as the CAdvisor (Container advisor)- responsible for retrieving performance metrics from pods and exposing them through the kubelet api to make the metrics available for the metrics server
+    - For minikube execute `minikube addons enable metrics-server`
+    - For all other all other environments, deploy the metrics server by cloning the metrics server deployment files from the github repository: `git clone https://github.com/kubernetes-incubator/metrics-server.git` and then deploy the required components
+      - `kubectl create -f deploy/1.8+/`
+      - `kubectl top node`: to view memory and CPU usage
+      - `kubectl top pod`: to view performance metrics of pods
+  - Application Logs
+    - Application logs can be viewed using the `kubectl logs [podName]`
+      - e.g. `kubectl logs -f event-simulator-pod [containerName]`
+      - The `-f` option helps us to stream the log live. 
+      - These logs are specific to the container running on the pod.
+    - In case you have more than one container, you need to specify the name of the container you want to generate its logs i.e. `kubectl logs -f [podName] [containerName]`
+    - [loadbalancer.yaml](./loadbalancer.yaml)
+
+## Application Lifecycle Management
+- 
 
 
