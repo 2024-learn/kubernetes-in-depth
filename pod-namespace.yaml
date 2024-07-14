@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: myapp-pod#(string)
+  name: myapp-pod #(string)
   namespace: dev # This makes sure that the pod gets created in the "dev" namespace
   labels:
     app: myapp

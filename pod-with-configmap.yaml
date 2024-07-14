@@ -1,0 +1,15 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: webapp-color
+  labels:
+    name: webapp-color
+spec:
+  containers:
+  - envFrom:
+    - configMapRef:
+        name: webapp-config-map
+    image: kodekloud/webapp-color
+    imagePullPolicy: Always
+    name: webapp-color
+    resources: {}

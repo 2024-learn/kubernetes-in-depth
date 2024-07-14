@@ -1,0 +1,20 @@
+# Create configmap
+apiVersion: v1
+kind: Configmap
+metadata: app-config
+data:
+  APP_COLOR: blue
+  APP_MODE: prod
+
+---
+# Inject configmap into pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+spec:
+  containers:
+  - name: simple-webapp-color
+    envFrom:
+      - configMapRef:
+          name: app-config
