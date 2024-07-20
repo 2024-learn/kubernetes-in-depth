@@ -1,0 +1,14 @@
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  user: phyllis
+spec:
+  groups:
+  - system: authenticated
+  expirationSeconds: 600 # seconds
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth
+  request:
+    - LS0tLS1wBOrtIM2VwnHSBTNR9MpW9l+UkD5Mg+Llu50Hh7uPN0qZH1I+o01/f2rA/aVZo8Zrk6LYi50i3CxRVgxgSMemQiNO2e23C3IwnB0Yf4BornugjHySkfpaDt+F2i2HgP0U
