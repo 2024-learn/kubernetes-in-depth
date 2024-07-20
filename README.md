@@ -942,6 +942,7 @@
         - `kubectl get secret app-secret -o yaml`: to view the secret’s values
     - To decode the hash value, use the same base64 and append `--decode`:
       - `echo -n ‘bXlzcWw=’ | base64 --decode` ⇒ mysql or `echo -n ‘bXlzcWw=’ | base64 -d` ⇒ mysql
+    - Generate 32 bytes of random data and then encodes that data in Base64: `head -c 32 /dev/urandom | base64`
 
 - Inject into the Pod. Examples:
   ```
@@ -1080,7 +1081,7 @@
     - Minor versions are released every few months with new features and functionalities
     - Patches are released more often with critical bug fixes
     - There are also aplha and beta releases; all the bug-fixes and releases first get into an alpha release where the new features are disabled e.g. (v1.0.0-alpha), then the beta release where the code is well-tested, new features enabled by default (e.g. v1.0.0-beta), then they make the way into a main stable release (e.g. v1.0.0)
-  - The ETCD clusters and CoreDNS servers (dependencies) have their own versions separate from the kube-apiserver, controller manager, kube-scheduler, kubelet, kube-proxy, kubectl (core control panel components); as they are separate projects
+  - The ETCD clusters and CoreDNS servers (dependencies) have their own versions separate from the kube-APIserver, controller manager, kube-scheduler, kubelet, kube-proxy, kubectl (core control panel components); as they are separate projects
   - References:
     - https://github.com/kubernetes/community/tree/master/contributors/design-proposals
     - https://github.com/kubernetes/design-proposals-archive/blob/main/release/versioning.md
@@ -1093,10 +1094,10 @@
     - https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api_changes.md
 
 - __Cluster Upgrade Process__:
-  - The core control panel components (kube-apiserver, controller-manager, kube-scheduler, kubelet, kube-proxy) can have different versions but never a version higher than the kube-apiserver, which is the major control component.
-    - The controller-manager and the kube-scheduler can be one version lower (X-1) than the kube-apiserver or the same version as the kube-apiserver (X)
-    - The kubelet and the kube-proxy can be two versions (X-2) lower than the kube-apiserver(X)
-    - The kubectl utility  can be one of three versions: one version higher(X+1), same(X) or one version lower(X-1) than the kube-apiserver(X).
+  - The core control panel components (kube-APIserver, controller-manager, kube-scheduler, kubelet, kube-proxy) can have different versions but never a version higher than the kube-APIserver, which is the major control component.
+    - The controller-manager and the kube-scheduler can be one version lower (X-1) than the kube-APIserver or the same version as the kube-APIserver (X)
+    - The kubelet and the kube-proxy can be two versions (X-2) lower than the kube-APIserver(X)
+    - The kubectl utility  can be one of three versions: one version higher(X+1), same(X) or one version lower(X-1) than the kube-APIiserver(X).
   - When to upgrade:
     - K8s only supports up to 3 of the latest versions. ie. if v1.12 is released, k8s will support v1.11, v1.10 and v1.12, when v1.13 is released, the support for v1.10 is dropped.
     - This permissible skew in versions allows us to carry out live upgrades; i.e. component by component if required.
@@ -1109,7 +1110,7 @@
   - `kubeadm` upgrade:
     - Upgrading the cluster involves two steps:
       1. Upgrading the master node:
-        - When the master node is being upgraded, the controlplane components like the kube-apiserver, scheduler and controller managers go down temporarily, but that does not necessarily take down the worker nodes so the applications are still available from the worker nodes, so users will not be impacted, but management functions are down. That is, the cluster cannot be accessed using kubectl or other kubernetes API, hence you cannot deploy new applications or delete/manage the existing ones at this time. 
+        - When the master node is being upgraded, the controlplane components like the kube-APIserver, scheduler and controller managers go down temporarily, but that does not necessarily take down the worker nodes so the applications are still available from the worker nodes, so users will not be impacted, but management functions are down. That is, the cluster cannot be accessed using kubectl or other kubernetes API, hence you cannot deploy new applications or delete/manage the existing ones at this time. 
         - Since the controller managers are aslo down during the upgrade process, if a pod was to fail, a new one would not be automatically created. 
         - Once the upgrade is completed and the cluster is back up, it should function normally.
       
@@ -1132,7 +1133,7 @@
               - `apt-get upgrade -y kubeadm=xxxx` (specify version)
               - `kubeadm upgrade apply v1.x.x` (version from the plan output)
         - Once the upgrade is completed, listing all nodes with `kubectl get nodes` command will still list the master node with the old version. 
-          - This is because the versions outputted by this command are the versions of the kubelet running on each node registered with the apiserver and not the version of the apiserver.
+          - This is because the versions outputted by this command are the versions of the kubelet running on each node registered with the APIserver and not the version of the APIserver.
         - NB: The kubeadm tool also follows the same software version as kubernetes.
         - NOTE: With kubeadm, you have to manually install and upgrade the kubelet after upgrading the other control components.
           - First of all, upgrade the kubelet on the master node (if it is installed on the master node). That is; run
@@ -1159,7 +1160,7 @@
 
 - __Backup and Restore__
   - APIServer: 
-    - You can save all the resource configuration files on a code repository like Github. However, if there are objects created the imperative way, some components might be missed. Therefore, it is recommended to query the kube-apiserver either using kubectl or accessing the apiServer directly and save all the resource configurations for all objects created in the cluster as a copy.
+    - You can save all the resource configuration files on a code repository like Github. However, if there are objects created the imperative way, some components might be missed. Therefore, it is recommended to query the kube-apiserver either using kubectl or accessing the APIServer directly and save all the resource configurations for all objects created in the cluster as a copy.
       - Eg. `kubectl get all --all-namespaces -o yaml > all-deploy-services.yaml` ⇒ extracts all pods, deployments and services in all namespaces and saves them in to a yaml file 
     - Or you can also use tools like VELERO or Ark by HeptIO to backup your kubernetes cluster resources using the kubernetes API.
 
@@ -1179,7 +1180,7 @@
       - ⇒ e.g. `/var/lib/etcd-from-backup`
     - We then configure the ETCD configuration file to use the new data directory: 
       - `--data-dir /var/lib/etcd-from-backup`
-    - Then reload the service daemon and restart etcd service and finally restart the kube-apiserver
+    - Then reload the service daemon and restart etcd service and finally restart the kube-APIserver
       - `systemctl daemon-reload`
       - `service etcd restart`
       - `service kube-apiserver start`
@@ -1231,4 +1232,113 @@
   - https://www.youtube.com/watch?v=qRPNuT080Hk
 
 ## Security
+- __Kubernetes Security Primitives__
+  - The first line of defense in k8s is controlling the access to the kube-APIserver. That is who can access the APIserver and what can they do.
+  - Who can access the APIserver? (Because this is a major control plane component, it is the first line of defense to secure it)
+    - This is determined by the authentication mechanisms. There are different methods to authenticate with the APIserver:
+      - Files- Usernames and passwords
+      - Files- Usernames and tokens
+      - Certificates
+      - External Authentication Providers like LDAP
+      - Service Accounts
+  - What can they do in the cluster? 
+    - This is defined by the authorization mechanisms which are implemented using:
+      - Role-based access control (RBAC) authorization where users are associated to groups with specific permissions. 
+    - There are other authorization modules like:
+      - Attribute Based Access Control (ABAC) authorization
+      - Node Authorization
+      - Webhook Mode
+  - All communication in the cluster between the kube-APIserver and ETCD cluster, controller manager, kube-scheduler as well as those components running in the worker nodes kube-proxy, kubelet are secured using __TLS encryption__
+  - Communications between applications in the cluster: 
+    - By default all pods can access all other pods within the cluster. You can restrict communication between them using __network policies__
+
+- __Authentication__
+  - The kubernetes cluster has users like administrators who access the cluster to perform administrative tasks, developers who access the cluster to test or deploy applications, end users who access the applications deployed in the cluster and third party applications accessing the cluster for integration purposes.
+  - K8s does not manage user accounts natively. It relies on an external source like a file with user details or certificates or third party identity service like LDAP. You therefore cannot directly create/manage users on k8s
+  - K8s can create and manage service accounts directly using the k8s API:
+    - `kubectl create serviceaccount <serviceAccountName>`
+    - `kubectl get serviceaccount`
+  - All user access is managed by the APIserver, i.e whether access is through kubectl or the API directly ⇒ `curl https://kube-server-ip:6443/`. The APIserver first of all authenticates the user making these requests before it processes the users request.
+  - __Authentication Mechanisms__
+    - How does the APIserver authenticate?
+      - A list of users and their passwords in a CSV file and use that as the source for user information	(DEPRECATED!)
+        - The [CSV file](./user-details.csv) has three columns: password, username and userID and an optional fourth column with the group details to assign users to specific groups
+        - This file name is then passed to the api-server as an option in the kube-apiserver (kube-api-server.service file) `--basic-auth-file=user-details.csv`
+        - Then you have to restart the kube-api service for the effects to take place
+        - If a cluster is set up via the kubeadm tool: modify the kube-apiserver pod-definition file → `/etc/kubernetes/manifests/kube-apiserver.yaml`. The kubeadm tool will automatically restart the kube-apiserver once this file is updated
+        - To authenticate the user using the basic credentials while accessing the apiserver, specify the user and password in a curl command: `curl -v -k https://master-node-ip:6443/api/v1/pods -u "user1:password123"`
+        - In the csv file, we can optionally have a fourth column with group details to assign users to specific groups
+
+      - CSV file with a list of usernames and tokens in a static token file
+        - Instead of a password, a token is specified `--token-auth-file=user-details.csv`
+        - Pass the token file as an option token-auth file to the kube-apiserver
+        - When authenticating, specify the token as a bearer token: `curl -v -k https://master-node-ip:6443/api/v1/pods --header "Authorization: Bearer <token>"`
+        - NB:  using the static file with either passwords/tokens is not a recommended authentication mechanism because it is insecure. 
+          - Consider volume mount while providing the auth file in a kubeadm setup
+          - Setup Role Based Authorization for the new users
+      - Authenticate via certificates
+      - Identity Services: Connect to 3rd party identity services eg LDAP or Kerberos
+
+- __TLS Basics__
+  - A certificate is used to guarantee trust between two parties during a transaction. e.g. When a user tries to get access to a server, TLS certificates ensure that the communication between the user and the server is encrypted and the server is who it says it is.
+  - __Symmetric encryption__:
+    - A type of encryption where the same key (a secret key) is used to encrypt and decrypt data. Also, a copy of the key (to decode) must be sent to the server for the server to be able to decrypt the encrypted data. 
+    - Since both the encrypted data and the key to decode it are both sent over the same network, a hacker who gets a hold of both will be able to decode the encrypted data making it risky.
+  - __Asymmetric encryption__: 
+    - Uses a pair of keys i.e. a public key for encryption and a private key for decryption.
+    - Instead of using a single key, Asymmetric encryption uses a pair of keys- public key (lock) and private key. The user keeps the private key safe with them and not shared with others.
+    - The public key can be shared with others and can only be used to lock any data but once locked, it can only be unlocked using the private key.
+      - __SSH__:
+      - E.g. executing the `ssh-keygen` command will generate two keys: `id_rsa` (private key) and `id_rsa.pub` (public key). To lock a server, add an entry with your public key into the `ssh/authorized_keys` file.
+      - The public key can easily be viewed via cat ~/.ssh/authorized_keys but cannot unlock the server. 
+      - The private key can be used to unlock it by: `ssh -i id_rsa user1@server1`
+      - To secure more than one server with the same key pair, you need to create copies of the public key(lock) and place them on those servers, then use the same private key to access them via ssh securely.
+      - If other users need to access the same servers, they can generate their own public and private keys. Since you are the only one with access to those servers, you can create an additional door for them, lock it with their public key(lock), copy their public keys to the list of authorized_keys for the servers and now they can access the servers using their own private keys.
+      
+      - __SSL__:
+      - To securely transfer the symmetric key from the client to the server, we use asymmetric encryption to generate a public and private key pair on the server.
+        - Generate a public and private key on the server
+          - `openssl genrsa -out my-keys.key 1024`
+          - `openssl rsa -in my-keys.key -pubout > my-keys.pem`
+        - When the user first accesses the web server by using HTTPs, they get the public key from the server. The user’s browser then encrypts the symmetric key using the public key provided by the server making the symmetric key secure, and sends it back to the web server. The server uses the private key to decrypt the message and retrieve the symmetric key from it. So now the user can send encrypted messages to the server and vice versa and decrypt them on their corresponding ends.
+        - When the server sends the key it also sends a certificate that has the key in it.	
+        - This helps the browser to identify the authenticated server site as opposed to a hacker’s site.
+        - The certificate has information about who the cert. is issued to, the public key of that server, location of the server. Under the subject is the website that you are trying to reach and any other names that the website is under are listed under the subject alternative name. Thus far, this information can be duplicated. 
+        - So how do we really know who issued the certificate? *The issuer of the certificate*.
+        - If you generate your own certificate, that is known as a *self-signed certificate*.
+        - A hacker-signed certificate is also self-signed and the browser will identify it as such since all web browsers are built with a certificate validation mechanism. The browser will check the certificate generated by the server to see if it is legitimate. If the certificate is not legitimate, the browser will issue a warning.
+      - For public-hosted websites like banks, emails, etc.: To generate certificates for your web servers that the web browser will trust you need to use a Certificate Authority (CA). These are well-known organizations that can sign and validate your certificates for you. Some of the popular ones are like Symantec, Digicert, GlobalSign, Comodo, etc.
+      - You generate a Certificate Signing Request (CSR) using the key you generated earlier and the domain name of your website: `openssl req -new -key my-bank -out my-bank.csr -subj "/C=US/ST=CA/O=MyOrg, Inc./CN=my-bank<domainname>.com"`
+        - This generates a CSR which should be sent to the CA for signing.
+      - The CA verifies your details and once they check out, they sign the certificate and send it back to you, and now you have a cert. that browsers trust.
+      - The CA works to make sure that you are the actual owner of the domain which is why a hacker’s certificate will not be validated
+      - To validate that it was signed by a legitimate CA, the CAs themselves have a set of public and private key pairss. 
+        - The CAs use their private keys to sign their certificates. 
+        - The public keys of all the CAs are built into the browsers. The browser uses the public key of the CA to validate that the certificate was signed by the CA themselves. 
+        - These can be accessed by checking the browser settings under certificates, under the Trusted CAs tab.
+      - Validating private-hosted websites like within an organization eg, intranet, payroll: you can host your own private CA. Some of the public CAs above have private offerings of their services which you can deploy internally within your company. Then you can have the public key of your internal CA server installed on all your employees' browsers to establish secure connectivity within your organization.
+    
+    - Summary:
+      - Ad admin generates a key pair for securing SSH, while the web server issues a key-pair for securing the website with HTTPS. The certificate authority generates its own set of key pair to sign certificates. The end user only generates a single symmetric key. Once the user establises trust with the website, they can use username and password to authenticate to the webserver.
+      - The web server can request a certificate from the client to validate that the client is who they say they are, in which case the client must generate a pair of keys and a signed certificate from a certified CA and send that certificate over to the browser. 
+      - The reason we do not generate a certificate to access a browser is because TLS client certificates are not generally implemented on web servers, and if they are it’s done as part of the process under the hood, so a normal user doesn't have to generate and manage certificates manually.
+      - The whole infrastructure including the CA, servers, the people and the process of generating, distributing and maintaining certificates is known as *Public Key Infrastructure (PKI)*.  
+      - You can encrypt/decrypt data with either the public key or private key, however, you cannot encrypt data with one and decrypt with the same.
+        - You have to therefore be careful not to encrypt data with the private key because anyone with the public key can decrypt the data
+
+    - Naming convention for certificates: 
+      - Certificates with public key are named with a *.crt or *.pem extension, eg. server.crt
+        - server.pem
+        - client.crt
+        - client.pem
+      - Private keys are usually have a *.key or *-key.pem extension, eg. 
+        - server.key
+        - server-key.pem
+        - client.key 
+        - Client-key.pem
+
+    - Summary:
+      - Server certificates: configured on the servers
+      - Root certificates: configured on the CA servers
+      - Client certificates: configured on the clients
 - 
